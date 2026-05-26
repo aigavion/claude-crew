@@ -110,6 +110,15 @@ which is exactly what the commit guard helps with.
 | `/crew:worktree <name>` | Create an isolated worktree + branch for a new member |
 | `/crew:leave` | Deregister this instance; print worktree-cleanup tips |
 
+> **Prefer a bare `/crew Bob`?** Plugin commands are always namespaced (`/crew:join`),
+> but you can add a personal top-level alias: create `~/.claude/commands/crew.md` that runs
+> `node "<path-to-checkout>/plugins/crew/cli.js" name "$ARGUMENTS"` (and `... status` when
+> empty). Then `/crew Bob` works in any project.
+>
+> Note: naming an instance in-console only makes it a *distinct* peer if its identity is
+> already distinct — i.e. it's in its own worktree. Two plain sessions in the *same* folder
+> share one identity; to split them, name each at launch (`CREW_NAME=Bob claude`).
+
 ## Tools (model-callable)
 
 Claude can call these on its own to coordinate mid-task: `crew_roster`, `crew_say`,

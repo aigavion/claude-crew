@@ -213,10 +213,11 @@ const routes = {
 
   '/say': (b) => {
     if (!b.text) return { ok: false, error: 'text required' };
+    const sender = peers.get(b.from);
     const msg = {
       id: nextId('msg'),
       from: b.from || 'anon',
-      fromName: b.fromName || peerName(b.from) || 'anon',
+      fromName: (sender && sender.name) || b.fromName || 'anon',
       to: b.to || null,
       text: String(b.text),
       ts: Date.now(),
@@ -225,7 +226,6 @@ const routes = {
     messages.push(msg);
     if (messages.length > 1000) messages = messages.slice(-1000);
     // Sending counts as activity: reset the sender's stop-block budget.
-    const sender = peers.get(b.from);
     if (sender) sender.blockCount = 0;
     saveState();
     return { ok: true, id: msg.id };

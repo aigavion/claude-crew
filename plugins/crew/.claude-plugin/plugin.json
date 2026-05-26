@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin.json",
   "name": "crew",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Coordinate multiple independent Claude Code instances as a peer crew: shared task board, background messaging, and commit-time collision warnings. Open separate terminals (ideally one git worktree each) and they discover each other automatically.",
   "author": {
     "name": "Vincent (Gavion)"
