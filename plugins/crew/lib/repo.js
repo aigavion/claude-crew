@@ -11,10 +11,45 @@ import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
 
+// Locate the git binary. Prefer PATH, but fall back to standard install locations so
+// crew still works for users who have git installed but not on their PATH (a common
+// Windows case: "Git for Windows" installed without the PATH option). Cached per process.
+let GIT_BIN = null;
+function gitCandidates() {
+  if (process.platform === 'win32') {
+    const pf = process.env.ProgramFiles || 'C:\\Program Files';
+    const pf86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+    const la = process.env.LOCALAPPDATA;
+    return [
+      'git',
+      path.join(pf, 'Git', 'cmd', 'git.exe'),
+      path.join(pf, 'Git', 'bin', 'git.exe'),
+      path.join(pf86, 'Git', 'cmd', 'git.exe'),
+      la && path.join(la, 'Programs', 'Git', 'cmd', 'git.exe'),
+    ].filter(Boolean);
+  }
+  return ['git', '/usr/bin/git', '/usr/local/bin/git', '/opt/homebrew/bin/git'];
+}
+
+export function gitBin() {
+  if (GIT_BIN) return GIT_BIN;
+  for (const candidate of gitCandidates()) {
+    try {
+      execFileSync(candidate, ['--version'], { stdio: 'ignore', timeout: 4000 });
+      GIT_BIN = candidate;
+      return candidate;
+    } catch {
+      /* try next */
+    }
+  }
+  GIT_BIN = 'git'; // last resort; callers fail-soft on error
+  return GIT_BIN;
+}
+
 /** Run a git command, returning trimmed stdout or null on any failure (fail-soft). */
 export function git(args, cwd = process.cwd()) {
   try {
-    return execFileSync('git', args, {
+    return execFileSync(gitBin(), args, {
       cwd,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],

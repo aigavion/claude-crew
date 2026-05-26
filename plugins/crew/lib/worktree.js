@@ -9,10 +9,12 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { gitBin } from './repo.js';
 
 function gitRun(args, cwd) {
-  // shell:false; git resolved from PATH. Throws on failure so callers can report.
-  return execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  // Throws on failure so callers can report. Uses crew's git resolver (PATH or standard
+  // install locations) so worktree commands work even when git isn't on PATH.
+  return execFileSync(gitBin(), args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 }
 
 /** Find node_modules directories in the main checkout (shallow, depth-limited). */

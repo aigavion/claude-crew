@@ -21,6 +21,12 @@ terminals and each instance discovers the others on its own.
 /plugin install crew@crew-marketplace
 ```
 
+**Requirements:** Node 18+, and git (crew finds git on your PATH or at standard install
+locations automatically). Note that `/plugin marketplace add` uses Claude Code's *own*
+git to clone — so git must be on your PATH for the install step itself. If `git` isn't
+found there, either add it to PATH or load crew locally with `--plugin-dir` (no git
+needed to install that way).
+
 Then just open Claude in the same repo, in as many terminals as you want:
 
 ```shell
