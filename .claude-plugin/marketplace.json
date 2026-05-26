@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "crew-marketplace",
+  "description": "Peer coordination tooling for running multiple Claude Code instances on one project.",
+  "owner": {
+    "name": "Vincent (Gavion)"
+  },
+  "plugins": [
+    {
+      "name": "crew",
+      "source": "./plugins/crew",
+      "description": "Coordinate multiple independent Claude Code instances as a peer crew: shared task board, background messaging, and commit-time collision warnings.",
+      "category": "productivity",
+      "keywords": ["coordination", "multi-agent", "worktree", "collaboration", "peers"]
+    }
+  ]
+}

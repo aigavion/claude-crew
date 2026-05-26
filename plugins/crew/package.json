@@ -1,0 +1,11 @@
+{
+  "name": "claude-crew-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Peer coordination for multiple Claude Code instances. Zero runtime dependencies.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  }
+}
