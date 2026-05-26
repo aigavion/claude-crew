@@ -47,11 +47,46 @@ Instance A (its own worktree)        Instance B (its own worktree)
 
 Requires Node 18+ on your PATH (same Node that runs the plugin's hooks).
 
-## Recommended workflow
+## Quickest start — name each instance
 
-Each instance should work in its **own git worktree** so they never overwrite files on
-disk — collisions then become a clean git-merge concern, which is exactly what the
-commit guard helps with.
+Open a terminal per teammate **in the same repo** and launch Claude with a name. The
+name makes each one a distinct peer, so they see each other immediately:
+
+```powershell
+# PowerShell
+$env:CREW_NAME='Bob';   claude     # terminal 1
+$env:CREW_NAME='Alice'; claude     # terminal 2
+```
+```bash
+# macOS / Linux / Git Bash
+CREW_NAME=Bob   claude             # terminal 1
+CREW_NAME=Alice claude             # terminal 2
+```
+
+Prefer one word? Drop the `bin/` launcher on your PATH and just run `crew <name>`:
+
+```powershell
+crew Bob              # = launch Claude as crew member "Bob"
+crew Bob --resume     # extra args pass straight through to claude
+```
+
+> Add the launcher: copy `bin/crew.ps1` / `bin/crew.cmd` (Windows) or `bin/crew`
+> (macOS/Linux) somewhere on your PATH. Or add a PowerShell profile function:
+> `function crew { param($Name) $env:CREW_NAME=$Name; claude @args }`
+
+That's it — `/crew:status` in either window now shows the other. Use this when one
+instance mostly drives and the others help; it's the lowest-friction setup.
+
+> **Same-folder caveat:** named instances in the same folder are distinct peers, but
+> they share files on disk — if two of them save the same file at the same moment, one
+> overwrites the other (no tool can prevent that). For heavy parallel editing, give each
+> its own worktree (below).
+
+## Isolated worktrees — for heavy parallel editing
+
+When instances will edit lots of files at once, put each in its **own git worktree** so
+they never clobber each other on disk; collisions become a clean git-merge concern,
+which is exactly what the commit guard helps with.
 
 1. In your first Claude Code session on the repo, create an isolated workspace per teammate:
    ```
@@ -61,13 +96,7 @@ commit guard helps with.
    Each prints a path. node_modules are linked from your main checkout (junction on
    Windows, symlink elsewhere) so there's no full reinstall.
 2. Open a new terminal per worktree, `cd` into it, run `claude`, and `/crew:join alice`.
-3. Build in parallel. They share a task board, can message each other, and get warned
-   on overlapping commits.
-
-> You can also just open multiple `claude` sessions in the **same** folder — but two
-> instances saving the same file at once will overwrite each other on disk (no tool can
-> prevent that). Worktrees avoid it. Same-folder instances also share one peer identity,
-> so worktrees are the supported multi-instance mode.
+3. Build in parallel — shared task board, messaging, and overlapping-commit warnings.
 
 ## Commands
 
