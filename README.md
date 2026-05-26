@@ -1,134 +1,102 @@
 # crew — coordinate multiple Claude Code instances
 
-Run two or three Claude Code instances on the same project and they stop being blind
-to each other. **crew** gives independently-launched instances a shared task board,
-a background message channel, and a commit-time collision guard — so they divide
-work instead of duplicating it, and warn each other before they clobber the same
-files.
+Open Claude Code in two or three terminals on the same project and they stop being
+blind to each other. **crew** auto-connects them as peers: they share a task board,
+message each other in the background, and warn each other before they clobber the same
+files at commit time.
+
+No lead, no tmux, no flags, no setup. Works on Windows/macOS/Linux. **Zero runtime
+dependencies** — just Node.
 
 Unlike Claude Code's built-in [agent teams](https://code.claude.com/docs/en/agent-teams)
-(one fixed "lead" that spawns workers, tmux-only split panes), crew is **peer-based**:
-you open your own terminals, and each instance discovers the others automatically. No
-lead, no tmux, works on Windows/macOS/Linux. **Zero runtime dependencies** — just Node.
+(one fixed "lead" that spawns workers), crew is **peer-based**: you open your own
+terminals and each instance discovers the others on its own.
 
 ---
 
-## How it works
-
-```
-Instance A (its own worktree)        Instance B (its own worktree)
-  hooks + crew MCP server  ─┐        ┌─  hooks + crew MCP server
-                            ▼        ▼
-                 Broker daemon (127.0.0.1, ephemeral port)
-                 presence · messages · task board · file claims
-                 store keyed by `git rev-parse --git-common-dir`
-                 → every worktree of one repo shares one broker
-```
-
-- **Discovery is automatic.** Each instance is keyed to the repo via
-  `git --git-common-dir`, which is identical across all of a repo's worktrees. The
-  first instance spawns a tiny localhost broker; the rest find it. State lives in your
-  OS temp dir (never in the plugin cache), localhost-only.
-- **Messages arrive without polling.** Claude Code is turn-based — an instance only
-  "hears" peers at hook checkpoints. crew uses three: `SessionStart` injects the
-  roster, `UserPromptSubmit` flushes queued messages when you type, and `Stop` briefly
-  waits and — if a peer messaged you — keeps the instance going one more turn to handle
-  it. (Loop-guarded, so an idle instance always settles.)
-- **Collisions are caught at commit.** A `PreToolUse` hook watches `git commit/push/
-  merge`, compares your changed files against what peers are touching, and warns you
-  (or asks, or blocks — your choice) when they overlap or your branch is behind.
-
-## Install
+## Quick start
 
 ```shell
 /plugin marketplace add aigavion/claude-crew
 /plugin install crew@crew-marketplace
 ```
 
-Requires Node 18+ on your PATH (same Node that runs the plugin's hooks).
+Then just open Claude in the same repo, in as many terminals as you want:
 
-## Quickest start — name each instance
-
-Open a terminal per teammate **in the same repo** and launch Claude with a name. The
-name makes each one a distinct peer, so they see each other immediately:
-
-```powershell
-# PowerShell
-$env:CREW_NAME='Bob';   claude     # terminal 1
-$env:CREW_NAME='Alice'; claude     # terminal 2
-```
-```bash
-# macOS / Linux / Git Bash
-CREW_NAME=Bob   claude             # terminal 1
-CREW_NAME=Alice claude             # terminal 2
+```shell
+# terminal 1
+claude
+# terminal 2
+claude
 ```
 
-Prefer one word? Drop the `bin/` launcher on your PATH and just run `crew <name>`:
+They connect automatically — each terminal is its own peer (even in the same folder).
+`/crew` shows who's online. That's the whole setup.
 
-```powershell
-crew Bob              # = launch Claude as crew member "Bob"
-crew Bob --resume     # extra args pass straight through to claude
+Optional niceties:
+- **`/crew Bob`** — give this instance a friendly name (otherwise it's auto-named).
+- Heavy parallel editing? Give each instance its own worktree so they can't clobber
+  files on disk — see [Worktrees](#worktrees-for-heavy-parallel-editing) below.
+
+## How it works
+
+```
+Terminal A (session abc…)            Terminal B (session xyz…)
+  crew hooks  ─────────┐              ┌───────── crew hooks
+                       ▼              ▼
+            Broker daemon (127.0.0.1, ephemeral port)
+            presence · messages · task board · file claims
+            store keyed by `git rev-parse --git-common-dir`
 ```
 
-> Add the launcher: copy `bin/crew.ps1` / `bin/crew.cmd` (Windows) or `bin/crew`
-> (macOS/Linux) somewhere on your PATH. Or add a PowerShell profile function:
-> `function crew { param($Name) $env:CREW_NAME=$Name; claude @args }`
-
-That's it — `/crew:status` in either window now shows the other. Use this when one
-instance mostly drives and the others help; it's the lowest-friction setup.
-
-> **Same-folder caveat:** named instances in the same folder are distinct peers, but
-> they share files on disk — if two of them save the same file at the same moment, one
-> overwrites the other (no tool can prevent that). For heavy parallel editing, give each
-> its own worktree (below).
-
-## Isolated worktrees — for heavy parallel editing
-
-When instances will edit lots of files at once, put each in its **own git worktree** so
-they never clobber each other on disk; collisions become a clean git-merge concern,
-which is exactly what the commit guard helps with.
-
-1. In your first Claude Code session on the repo, create an isolated workspace per teammate:
-   ```
-   /crew:worktree alice
-   /crew:worktree bob
-   ```
-   Each prints a path. node_modules are linked from your main checkout (junction on
-   Windows, symlink elsewhere) so there's no full reinstall.
-2. Open a new terminal per worktree, `cd` into it, run `claude`, and `/crew:join alice`.
-3. Build in parallel — shared task board, messaging, and overlapping-commit warnings.
+- **Identity is per session.** Every hook gets a `session_id` that's unique to its
+  terminal, so two instances in the *same folder* are still distinct peers. The first
+  instance spawns a tiny localhost broker (state in your OS temp dir, never in the
+  plugin cache); the rest find it. Discovery is scoped to the repo via
+  `git --git-common-dir`, which is shared across all of a repo's worktrees.
+- **Messages arrive without polling.** Claude Code is turn-based, so crew delivers at
+  hook checkpoints: `SessionStart` connects you and shows the roster, `UserPromptSubmit`
+  flushes queued messages when you type, and `Stop` briefly waits and — if a peer
+  messaged you — keeps the instance going one more turn to handle it (loop-guarded).
+- **Collisions are caught at commit.** A `PreToolUse` hook watches `git commit/push/
+  merge`, compares your changed files against what peers are touching, and warns you
+  (or asks, or blocks — your choice) when they overlap or your branch is behind.
 
 ## Commands
 
 | Command | What it does |
 | :-- | :-- |
-| `/crew:join [name]` | Name this instance and show who else is active |
+| `/crew [name]` | Show the roster / give this instance a name *(personal alias, see below)* |
+| `/crew:join [name]` | Same, shipped with the plugin |
 | `/crew:status` | Roster + shared task board + unread count |
 | `/crew:say <msg>` | Message the crew (`@name msg` to direct-message) |
 | `/crew:tasks` | View / `add:` / `claim <id>` / `done <id>` on the board |
 | `/crew:sync` | Pull pending messages and run a collision check now |
 | `/crew:worktree <name>` | Create an isolated worktree + branch for a new member |
-| `/crew:leave` | Deregister this instance; print worktree-cleanup tips |
+| `/crew:leave` | Disconnect this instance; print worktree-cleanup tips |
 
-> **Prefer a bare `/crew Bob`?** Plugin commands are always namespaced (`/crew:join`),
-> but you can add a personal top-level alias: create `~/.claude/commands/crew.md` that runs
-> `node "<path-to-checkout>/plugins/crew/cli.js" name "$ARGUMENTS"` (and `... status` when
-> empty). Then `/crew Bob` works in any project.
->
-> Note: naming an instance in-console only makes it a *distinct* peer if its identity is
-> already distinct — i.e. it's in its own worktree. Two plain sessions in the *same* folder
-> share one identity; to split them, name each at launch (`CREW_NAME=Bob claude`).
+Claude can also coordinate on its own initiative — the SessionStart message tells it how
+to message peers and use the task board via the bundled CLI.
 
-## Tools (model-callable)
+> **Bare `/crew`:** plugin commands are namespaced as `/crew:*`. To type just
+> `/crew Bob`, add a personal command at `~/.claude/commands/crew.md` that runs
+> `node "<checkout>/plugins/crew/cli.js" name "$ARGUMENTS"` (and `... status` when empty).
 
-Claude can call these on its own to coordinate mid-task: `crew_roster`, `crew_say`,
-`crew_inbox`, `crew_tasks_list`, `crew_task_add`, `crew_task_claim`, `crew_task_update`,
-`crew_declare_files`, `crew_check_collisions`.
+## Worktrees (for heavy parallel editing)
+
+Same-folder peers coordinate fine, but they share files on disk — if two save the same
+file at the same moment, one overwrites the other. When instances will edit a lot in
+parallel, give each its own git worktree so that can't happen (collisions become a clean
+git-merge concern, which the commit guard handles):
+
+```
+/crew:worktree alice      # prints a path; node_modules linked from your main checkout
+```
+Open a terminal in that path, run `claude`, and it joins the same crew automatically.
 
 ## Configuration
 
-Optional `.claude-crew.local.md` in your repo root (YAML frontmatter), or environment
-variables:
+Optional `.claude-crew.local.md` in your repo root (YAML frontmatter), or env vars:
 
 ```markdown
 ---
@@ -136,7 +104,7 @@ collisionMode: warn        # warn | ask | block  (what the commit guard does on 
 peerScope: repo            # repo | cwd | machine (who counts as a peer)
 nodeModulesStrategy: link  # link | install | skip
 worktreeBaseDir: .crew-worktrees
-displayName:               # override this instance's name
+displayName:               # force this instance's name
 stopWaitMs: 1500           # how long Stop waits for late messages
 ---
 ```
@@ -146,10 +114,10 @@ Env equivalents: `CREW_COLLISION_MODE`, `CREW_PEER_SCOPE`, `CREW_NAME`,
 
 ## Limitations (by design)
 
-- Coordination happens at hook checkpoints, not mid-thought — an instance fully idle
-  (waiting on you) sees new messages when you next type, or right as it stops.
-- One peer identity per working directory → run separate instances in separate worktrees.
-- The commit guard defaults to **warn**; it never silently blocks your git unless you set
+- Coordination happens at hook checkpoints, not mid-thought — a fully idle instance sees
+  new messages when you next type, or right as it stops.
+- Same-folder peers share files on disk; use worktrees for heavy parallel editing.
+- The commit guard defaults to **warn**; it never blocks your git unless you set
   `collisionMode: block`.
 - The broker is localhost-only and shuts down ~a minute after the last instance leaves.
 
@@ -157,15 +125,9 @@ Env equivalents: `CREW_COLLISION_MODE`, `CREW_PEER_SCOPE`, `CREW_NAME`,
 
 ```shell
 node plugins/crew/test/smoke.mjs      # broker + client + tasks + collisions
-node plugins/crew/test/mcp-test.mjs   # MCP JSON-RPC handshake + tools
+claude plugin validate plugins/crew   # plugin manifest + components
 claude plugin validate .              # marketplace
-claude plugin validate plugins/crew   # plugin
-```
-
-Test a local checkout without installing:
-
-```shell
-claude --plugin-dir ./plugins/crew
+claude --plugin-dir ./plugins/crew    # load a local checkout without installing
 ```
 
 ## License

@@ -17,21 +17,20 @@ const cwd = input.cwd || process.cwd();
 const tool = input.tool_name;
 const ti = input.tool_input || {};
 
-function toRel(file) {
-  try {
-    const abs = path.isAbsolute(file) ? file : path.resolve(cwd, file);
-    const id = resolveIdentity(cwd);
-    const root = id.info ? id.info.repoRoot : cwd;
-    return path.relative(root, abs).replace(/\\/g, '/');
-  } catch {
-    return String(file).replace(/\\/g, '/');
-  }
-}
-
 try {
-  const id = resolveIdentity(cwd);
+  const id = resolveIdentity(cwd, input.session_id);
   const client = new CrewClient(id);
   await client.heartbeat({ changedFiles: localChangedFiles(cwd) }).catch(() => {});
+
+  const root = id.info ? id.info.repoRoot : cwd;
+  const toRel = (file) => {
+    try {
+      const abs = path.isAbsolute(file) ? file : path.resolve(cwd, file);
+      return path.relative(root, abs).replace(/\\/g, '/');
+    } catch {
+      return String(file).replace(/\\/g, '/');
+    }
+  };
 
   if (EDIT_TOOLS.includes(tool)) {
     const file = ti.file_path || ti.notebook_path;
@@ -42,7 +41,7 @@ try {
         emit({
           hookSpecificOutput: {
             hookEventName: 'PreToolUse',
-            additionalContext: `[crew] Heads-up: peer "${r.conflict.name}" is also editing ${rel}. Coordinate via crew_say or expect to merge.`,
+            additionalContext: `[crew] Heads-up: peer "${r.conflict.name}" is also editing ${rel}. Coordinate via /crew:say or expect to merge.`,
           },
         });
       }

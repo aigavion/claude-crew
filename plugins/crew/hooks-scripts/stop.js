@@ -12,7 +12,7 @@ const input = await readInput();
 const cwd = input.cwd || process.cwd();
 
 try {
-  const id = resolveIdentity(cwd);
+  const id = resolveIdentity(cwd, input.session_id);
   const client = new CrewClient(id);
 
   // Cheap presence ping that also tells us roster size + block budget.

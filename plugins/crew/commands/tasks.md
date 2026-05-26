@@ -1,19 +1,13 @@
 ---
 description: View and manage the shared crew task board (add / claim / complete)
-allowed-tools:
-  [
-    "mcp__plugin_crew_crew__crew_tasks_list",
-    "mcp__plugin_crew_crew__crew_task_add",
-    "mcp__plugin_crew_crew__crew_task_claim",
-    "mcp__plugin_crew_crew__crew_task_update",
-  ]
+allowed-tools: ["Bash"]
 ---
 
-Help the user with the shared task board based on: $ARGUMENTS
+Manage the shared task board based on: $ARGUMENTS — run the crew CLI:
 
-- No arguments → call `crew_tasks_list` and summarize what's open vs claimed vs done.
-- `add: <title>` → create it with `crew_task_add`.
-- `claim <id>` → claim it with `crew_task_claim` (report if a peer beat you to it).
-- `done <id>` → mark it done with `crew_task_update` (status `done`).
+- No arguments → `node "${CLAUDE_PLUGIN_ROOT}/cli.js" tasks`
+- `add: <title>` → `node "${CLAUDE_PLUGIN_ROOT}/cli.js" task-add <title>`
+- `claim <id>` → `node "${CLAUDE_PLUGIN_ROOT}/cli.js" task-claim <id>`
+- `done <id>` → `node "${CLAUDE_PLUGIN_ROOT}/cli.js" task-done <id>`
 
-Always finish by showing the current board.
+Always finish by running `node "${CLAUDE_PLUGIN_ROOT}/cli.js" tasks` and showing the board.

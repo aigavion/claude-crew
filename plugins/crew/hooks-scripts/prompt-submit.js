@@ -10,7 +10,7 @@ const input = await readInput();
 const cwd = input.cwd || process.cwd();
 
 try {
-  const id = resolveIdentity(cwd);
+  const id = resolveIdentity(cwd, input.session_id);
   const client = new CrewClient(id);
   await client.heartbeat({ changedFiles: localChangedFiles(cwd) }).catch(() => {});
   const r = await client.inbox(true);
